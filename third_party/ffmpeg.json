@@ -1,0 +1,11 @@
+{
+  "version": "2025-11-02-git-f5eb11a71d",
+  "archiveName": "ffmpeg-2025-11-02-git-f5eb11a71d-full_build.7z",
+  "directory": "ffmpeg-2025-11-02-git-f5eb11a71d-full_build",
+  "url": "https://github.com/GyanD/codexffmpeg/releases/download/2025-11-02-git-f5eb11a71d/ffmpeg-2025-11-02-git-f5eb11a71d-full_build.7z",
+  "archiveSha256": "b22f67178f11dba91e8b7caa136a04d63ccf4f14fb06078f1b57936114f616b9",
+  "binarySha256": "e7802adbbaa97fbb53dc610ae721184f87f4a36fc2729c53e61f79c224f24149",
+  "sourceCommit": "f5eb11a71d64660543809cbe2aa6c4d6f4aff96c",
+  "sourceUrl": "https://github.com/FFmpeg/FFmpeg/tree/f5eb11a71d64660543809cbe2aa6c4d6f4aff96c",
+  "license": "GPL-3.0-or-later"
+}

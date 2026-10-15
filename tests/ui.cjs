@@ -1,0 +1,75 @@
+const { _electron: electron } = require('playwright');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const { runFFmpeg, inspectWave } = require('../src/media.cjs');
+
+(async () => {
+  const { root, artifacts, binary, executable, portable } = require('./helpers.cjs');
+  const sample = path.join(artifacts, 'prueba de audio.wav');
+  const saved = path.join(artifacts, 'recorte guardado.wav');
+  await runFFmpeg(binary, ['-y', '-f', 'lavfi', '-i', 'aevalsrc=0.5*sin(2*PI*(220+110*sin(t))*t)*abs(sin(2*t)):s=44100:d=12', sample]);
+  const errors = [];
+  const profile = await fs.mkdtemp(path.join(artifacts, 'profile-ui-'));
+  const profileArgument = `--user-data-dir=${profile}`;
+  const app = await electron.launch({ executablePath: executable, args: [profileArgument], timeout: 30000 });
+  try {
+    const page = await app.firstWindow();
+    page.on('pageerror', error => errors.push(error.message));
+    await page.locator('#open').waitFor();
+    await page.waitForFunction(() => document.querySelector('h1').textContent && !document.getElementById('open').disabled);
+    await page.screenshot({ path: path.join(artifacts, 'empty.png') });
+    await app.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }); }, sample);
+    await page.click('#open');
+    await page.waitForFunction(() => !document.getElementById('play').disabled && document.getElementById('filename').textContent.includes('prueba'));
+    await page.waitForFunction(() => document.getElementById('audio').readyState >= 2);
+    const checks = await app.evaluate(({ BrowserWindow, app }) => ({ packaged: app.isPackaged, preferences: BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences() }));
+    assert.equal(checks.packaged, true);
+    assert.equal(checks.preferences.sandbox, true);
+    assert.equal(checks.preferences.contextIsolation, true);
+    assert.equal(checks.preferences.nodeIntegration, false);
+    const area = await page.locator('#wave').boundingBox();
+    const startHandle = await page.locator('#handle-start').boundingBox();
+    await page.mouse.move(startHandle.x + startHandle.width / 2, startHandle.y + startHandle.height / 2);
+    await page.mouse.down(); await page.mouse.move(area.x + area.width / 4, area.y + area.height / 2, { steps: 20 }); await page.mouse.up();
+    assert.ok((await page.inputValue('#start-time')).startsWith('0:03.'), 'Start handle moves to quarter');
+    await page.locator('#end-time').fill('0:05.000'); await page.locator('#end-time').press('Enter');
+    await page.click('#play');
+    await page.waitForFunction(() => !document.getElementById('audio').paused);
+    await page.waitForFunction(() => document.getElementById('audio').currentTime > 3.1);
+    await page.screenshot({ path: path.join(artifacts, 'playing.png') });
+    await page.waitForFunction(() => document.getElementById('audio').paused, { timeout: 6000 });
+    assert.equal(await page.textContent('#play-label'), 'Reproducir');
+    await page.locator('#start-time').fill('0:03.000'); await page.locator('#start-time').press('Enter');
+    await app.evaluate(({ dialog }, file) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: file }); }, saved);
+    await page.click('#save');
+    await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('Listo.'));
+    assert.ok(Math.abs((await inspectWave(saved)).duration - 2) < .001);
+    await app.evaluate(({ dialog }) => { dialog.showSaveDialog = async () => ({ canceled: true }); });
+    await page.click('#save');
+    await page.waitForFunction(() => !document.getElementById('save').disabled);
+    assert.ok(Math.abs((await inspectWave(saved)).duration - 2) < .001, 'Cancel does not modify saved audio');
+    await page.locator('#handle-start').focus(); await page.keyboard.press('ArrowRight');
+    assert.equal(await page.inputValue('#start-time'), '0:03.010');
+    await page.locator('#start-time').fill('99:00.000'); await page.locator('#start-time').press('Enter');
+    assert.equal(await page.inputValue('#start-time'), '0:03.010');
+    await page.click('#reset');
+    assert.equal(await page.inputValue('#start-time'), '0:00.000');
+    assert.equal(await page.inputValue('#end-time'), '0:12.000');
+    await page.setViewportSize({ width: 720, height: 480 });
+    await page.evaluate(() => { document.getElementById('status').hidden = true; });
+    await page.screenshot({ path: path.join(artifacts, 'compact.png') });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    assert.ok(await page.evaluate(() => document.getElementById('save').getBoundingClientRect().bottom <= innerHeight), 'Actions fit the minimum window height');
+    assert.equal(await page.locator('footer, .intro, .local-badge').count(), 0);
+    assert.deepEqual(errors, []);
+    console.log('PASS: native Electron launch, preload, audio protocol, real playback, handle drag, exact export, keyboard, invalid times, reset and compact layout.');
+  } finally { await app.close(); }
+  const withFile = await electron.launch({ executablePath: executable, args: [profileArgument, sample], timeout: 30000 });
+  try {
+    const page = await withFile.firstWindow();
+    await page.waitForFunction(() => !document.getElementById('play').disabled);
+    assert.ok((await page.textContent('#filename')).includes('prueba de audio'));
+    console.log('PASS: opening an audio directly through Corta.exe file.wav.');
+  } finally { await withFile.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

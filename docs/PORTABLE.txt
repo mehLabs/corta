@@ -1,0 +1,25 @@
+CORTA 1.0.0 — Windows x64
+
+Extract the entire folder, then open Corta.exe.
+Keep the executable together with the other files.
+
+Open or drop an audio file. Drag the purple handles. Play. Save.
+Choose the original filename in the save dialog to replace it.
+The editing timeline continues to refer to the originally loaded audio.
+
+ES / EN changes the language and remembers your choice.
+Ctrl+O opens audio. Space plays/pauses. Escape stops.
+
+Edit textos.json beside the executable to customize wording, then restart.
+Translations live under locales.es and locales.en.
+
+Extraé toda la carpeta y abrí Corta.exe.
+Abrí o arrastrá un audio. Marcá el recorte. Reproducí. Guardá.
+Para reemplazar el original, elegí ese mismo archivo al guardar.
+El switch ES / EN cambia y recuerda el idioma.
+
+Downloads, source, contributions and documentation:
+https://github.com/mehLabs/corta
+
+Corta: Apache-2.0. Electron and FFmpeg retain their own licenses.
+See licenses/, LICENSE and LICENSES.chromium.html in this folder.
